@@ -18,6 +18,7 @@ import { ref, get, set, remove, push, onValue } from "firebase/database";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
+import { CouponsManager } from "@/components/Couponsmanager";
 import { QRScanner } from "@/components/shared/QRScanner";
 import { DeletionRequestManager } from "@/components/DeletionRequests";
 import {
@@ -14480,6 +14481,7 @@ const NAV_GROUPS = [
       { id: "app_members", icon: "ti-app-window", label: "App Members" },
       { id: "deletions", icon: "ti-trash", label: "Deletion Requests" },
       { id: "checkin", icon: "ti-circle-check", label: "Check-In" },
+      { id: "coupons", icon: "ti-ticket", label: "Coupons" },
       { id: "rewards", icon: "ti-gift", label: "Rewards" },
       { id: "usage", icon: "ti-chart-bar", label: "Monthly Usage" },
       { id: "credits", icon: "ti-ticket", label: "Packages" },
@@ -15410,6 +15412,7 @@ export function Admin() {
               {tab === "deletions" && <DeletionRequestManager toast={toast} />}
               {tab === "app_members" && <AppMembersManager toast={toast} />}
               {tab === "checkin" && <ManualCheckInManager toast={toast} />}
+              {tab === "coupons" && <CouponsManager toast={toast} />}
               {tab === "rewards" && <RewardsManager toast={toast} />}
               {tab === "credits" && <PackagesManager toast={toast} />}
               {tab === "classes" && <ClassesManager toast={toast} />}
