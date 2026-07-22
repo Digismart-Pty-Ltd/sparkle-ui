@@ -23,13 +23,20 @@ const PAYFAST_IPS = [
   "41.74.179.194",
 ];
 
+// FIX: PAYFAST_ENV and PAYFAST_PASSPHRASE were being read from process.env
+// but never declared in this function's `secrets` array below, so Firebase
+// Functions v2 never mounted them into the environment at runtime — this
+// function was silently always seeing an empty passphrase and unset env,
+// which meant IS_SANDBOX was always true and signature validation would
+// have rejected every real PayFast ITN. Both are now declared on the
+// payfastWebhook onRequest config.
 const IS_SANDBOX = process.env.PAYFAST_ENV !== "production";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main webhook handler
 // ─────────────────────────────────────────────────────────────────────────────
 export const payfastWebhook = onRequest(
-  { region: "europe-west1" },
+  { region: "europe-west1", secrets: ["PAYFAST_PASSPHRASE", "PAYFAST_ENV"] },
   async (req: Request, res: Response) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
@@ -322,7 +329,13 @@ function buildBookingKey(className: string, dateKey: string): string {
 // import axios from "axios";
 
 // if (!admin.apps.length) admin.initializeApp();
-// const db = admin.database();
+
+// // ── Lazy db getter — avoids top-level admin.database() call ──────────────────
+// // Calling admin.database() at module load time crashes Cloud Run health checks
+// // because the database URL isn't available until the function actually runs.
+// function getDb() {
+//   return admin.database();
+// }
 
 // const PAYFAST_IPS = [
 //   "197.97.145.144",
@@ -346,6 +359,7 @@ function buildBookingKey(className: string, dateKey: string): string {
 //     }
 
 //     const body: Record<string, string> = req.body;
+//     const db = getDb();
 
 //     try {
 //       // ── Step 1: IP whitelist ───────────────────────────────────────────────
@@ -412,10 +426,17 @@ function buildBookingKey(className: string, dateKey: string): string {
 //       // ── Step 6: Handle payment status ─────────────────────────────────────
 //       if (payment_status === "COMPLETE") {
 //         if (flowType === "class_booking") {
-//           await confirmClassBooking(recordId, pending, userId, pf_payment_id);
+//           await confirmClassBooking(
+//             db,
+//             recordId,
+//             pending,
+//             userId,
+//             pf_payment_id,
+//           );
 //         } else if (flowType === "credit_pack") {
 //           const credits = parseInt(creditsStr ?? "0", 10);
 //           await confirmPackPurchase(
+//             db,
 //             recordId,
 //             pending,
 //             userId,
@@ -424,7 +445,7 @@ function buildBookingKey(className: string, dateKey: string): string {
 //           );
 //         }
 //       } else {
-//         await handlePaymentFailure(recordId, pending, flowType, userId);
+//         await handlePaymentFailure(db, recordId, pending, flowType, userId);
 //       }
 
 //       res.status(200).send("OK");
@@ -441,6 +462,7 @@ function buildBookingKey(className: string, dateKey: string): string {
 // export const releaseStalePendingBookings = onSchedule(
 //   { schedule: "every 5 minutes", region: "europe-west1" },
 //   async () => {
+//     const db = getDb();
 //     const cutoff = Date.now() - 15 * 60 * 1000;
 //     const snap = await db
 //       .ref("pending_bookings")
@@ -473,6 +495,7 @@ function buildBookingKey(className: string, dateKey: string): string {
 // // Helpers
 // // ─────────────────────────────────────────────────────────────────────────────
 // async function confirmClassBooking(
+//   db: admin.database.Database,
 //   recordId: string,
 //   pending: any,
 //   userId: string,
@@ -510,6 +533,7 @@ function buildBookingKey(className: string, dateKey: string): string {
 // }
 
 // async function confirmPackPurchase(
+//   db: admin.database.Database,
 //   recordId: string,
 //   pending: any,
 //   userId: string,
@@ -538,6 +562,7 @@ function buildBookingKey(className: string, dateKey: string): string {
 // }
 
 // async function handlePaymentFailure(
+//   db: admin.database.Database,
 //   recordId: string,
 //   pending: any,
 //   flowType: string,

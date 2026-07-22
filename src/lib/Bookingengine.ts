@@ -12,12 +12,17 @@ import {
 import { formatDateKey } from "@/pages/ClassBooking";
 
 // ── PayFast config ────────────────────────────────────────────────────────────
-const PF_MERCHANT_ID = import.meta.env.VITE_PAYFAST_MERCHANT_ID ?? "10000100";
+// LIVE credentials. Merchant ID/key are not secret — they're submitted in a
+// browser form POST to PayFast and are visible in page source regardless —
+// but they DO determine whether payments are real or sandbox, so make sure
+// VITE_PAYFAST_* env vars are NOT set to sandbox values in your production
+// build environment, or they'll override these fallbacks.
+const PF_MERCHANT_ID = import.meta.env.VITE_PAYFAST_MERCHANT_ID ?? "33590845";
 const PF_MERCHANT_KEY =
-  import.meta.env.VITE_PAYFAST_MERCHANT_KEY ?? "46f0cd694581a";
+  import.meta.env.VITE_PAYFAST_MERCHANT_KEY ?? "7cltivzw9kkvg";
 const PF_BASE =
   import.meta.env.VITE_PAYFAST_BASE_URL ??
-  "https://sandbox.payfast.co.za/eng/process";
+  "https://www.payfast.co.za/eng/process";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -460,7 +465,7 @@ export async function getRemainingMonthlyBookings(
 // } from "@/types/booking";
 // import { formatDateKey } from "@/pages/ClassBooking";
 
-// // ── PayFast config (move to .env in production) ───────────────────────────────
+// // ── PayFast config ────────────────────────────────────────────────────────────
 // const PF_MERCHANT_ID = import.meta.env.VITE_PAYFAST_MERCHANT_ID ?? "10000100";
 // const PF_MERCHANT_KEY =
 //   import.meta.env.VITE_PAYFAST_MERCHANT_KEY ?? "46f0cd694581a";
@@ -470,12 +475,10 @@ export async function getRemainingMonthlyBookings(
 
 // // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// /** "2025-06-14" */
 // function todayKey(): string {
 //   return formatDateKey(new Date());
 // }
 
-// /** Rolling 30-day window start as YYYY-MM-DD */
 // function thirtyDaysAgo(): string {
 //   const d = new Date();
 //   d.setDate(d.getDate() - 30);
@@ -492,7 +495,6 @@ export async function getRemainingMonthlyBookings(
 
 // // ─────────────────────────────────────────────────────────────────────────────
 // // A. BOOK FREE (members + non-members with credits)
-// //    Uses Firebase runTransaction — atomic, race-condition-safe.
 // // ─────────────────────────────────────────────────────────────────────────────
 // export async function bookClass(
 //   cls: GymClass,
@@ -504,8 +506,6 @@ export async function getRemainingMonthlyBookings(
 //   const family = getTierFamily(tier);
 //   const rules = TIER_RULES[family];
 //   const bKey = buildBookingKey(cls.name, dateKey);
-
-//   // ── 1. Pre-transaction client-side guards (cheap, not authoritative) ───────
 
 //   // 1a. Class time already passed today?
 //   if (isClassTimePassed(cls.time, selectedDate)) {
@@ -533,24 +533,17 @@ export async function getRemainingMonthlyBookings(
 //     }
 //   }
 
-//   // ── 2. Atomic transaction on the class booking node ───────────────────────
+//   // 2. Atomic transaction
 //   const classBookingRef = ref(db, `class_bookings/${bKey}`);
 
 //   const result = await runTransaction(classBookingRef, (current) => {
 //     const bookings: Record<string, unknown> = current ?? {};
 
-//     // 2a. Already booked?
-//     if (bookings[user.uid]) {
-//       return; // abort transaction — we'll detect this below
-//     }
+//     if (bookings[user.uid]) return; // already booked, abort
 
-//     // 2b. Class full?
 //     const bookedCount = Object.keys(bookings).length;
-//     if (bookedCount >= cls.spots) {
-//       return; // abort
-//     }
+//     if (bookedCount >= cls.spots) return; // full, abort
 
-//     // Write the booking
 //     bookings[user.uid] = {
 //       name: user.name,
 //       email: user.email,
@@ -563,7 +556,6 @@ export async function getRemainingMonthlyBookings(
 //   });
 
 //   if (!result.committed) {
-//     // Transaction aborted — figure out which guard triggered
 //     const snap = await get(classBookingRef);
 //     const current = snap.val() ?? {};
 //     if (current[user.uid]) {
@@ -579,18 +571,16 @@ export async function getRemainingMonthlyBookings(
 //     throw new BookingError("UNKNOWN", "Booking failed. Please try again.");
 //   }
 
-//   // ── 3. Post-transaction: check rolling limits (reads, not writes) ──────────
-//   // These run after the slot is claimed. If they fail we roll back the booking.
+//   // 3. Post-transaction limit checks — roll back if breached
 //   try {
 //     await assertMonthlyLimit(user.uid, rules.maxClassesPerMonth, dateKey);
 //     await assertDailyLimit(user.uid, rules.maxBookingsPerDay, dateKey);
 //   } catch (limitErr) {
-//     // Roll back the booking we just wrote
 //     await set(ref(db, `class_bookings/${bKey}/${user.uid}`), null);
 //     throw limitErr;
 //   }
 
-//   // ── 4. Deduct credit for basic/non-member bookings ────────────────────────
+//   // 4. Deduct credit for basic/non-member bookings
 //   if (rules.requiresCredits) {
 //     const credRef = ref(db, `mk2_users/${user.uid}/classCredits`);
 //     const credSnap = await get(credRef);
@@ -604,7 +594,7 @@ export async function getRemainingMonthlyBookings(
 //     });
 //   }
 
-//   // ── 5. Add to user's booking list ─────────────────────────────────────────
+//   // 5. Add to user's booking list
 //   const displayDate = selectedDate.toLocaleDateString("en-ZA", {
 //     weekday: "short",
 //     day: "numeric",
@@ -635,8 +625,7 @@ export async function getRemainingMonthlyBookings(
 // }
 
 // // ─────────────────────────────────────────────────────────────────────────────
-// // B. INITIATE PAYFAST  (single class — non-member, no credits)
-// //    Reserves the spot first, then redirects to PayFast.
+// // B. INITIATE PAYFAST (single class — non-member, no credits)
 // // ─────────────────────────────────────────────────────────────────────────────
 // export async function initiatePayFastForClass(
 //   cls: GymClass,
@@ -646,7 +635,7 @@ export async function getRemainingMonthlyBookings(
 // ): Promise<void> {
 //   const bKey = buildBookingKey(cls.name, dateKey);
 
-//   // ── 1. Reserve spot atomically ────────────────────────────────────────────
+//   // 1. Reserve spot atomically
 //   const classBookingRef = ref(db, `class_bookings/${bKey}`);
 
 //   const result = await runTransaction(classBookingRef, (current) => {
@@ -655,7 +644,6 @@ export async function getRemainingMonthlyBookings(
 //     const count = Object.keys(bookings).length;
 //     if (count >= cls.spots) return; // full, abort
 
-//     // Reserve with pending status
 //     bookings[user.uid] = {
 //       name: user.name,
 //       email: user.email,
@@ -678,7 +666,7 @@ export async function getRemainingMonthlyBookings(
 //     throw new BookingError("CLASS_FULL", "This class is full.");
 //   }
 
-//   // ── 2. Create pending_booking record ─────────────────────────────────────
+//   // 2. Create pending_booking record
 //   const pendingRef = push(ref(db, "pending_bookings"));
 //   const bookingId = pendingRef.key!;
 //   const price = cls.price || 250;
@@ -702,11 +690,7 @@ export async function getRemainingMonthlyBookings(
 //   };
 //   await set(pendingRef, pending);
 
-//   // ── 3. Set a 15-minute expiry cleanup (Firebase Function handles this) ────
-//   // The function watches pending_bookings and releases any pending_payment
-//   // slots older than 15 min. No action needed client-side.
-
-//   // ── 4. Redirect to PayFast ────────────────────────────────────────────────
+//   // 3. Redirect to PayFast
 //   const formData: Record<string, string> = {
 //     merchant_id: PF_MERCHANT_ID,
 //     merchant_key: PF_MERCHANT_KEY,
@@ -719,7 +703,7 @@ export async function getRemainingMonthlyBookings(
 //     custom_str2: "class_booking",
 //     custom_str3: user.uid,
 //     custom_str4: "class_booking",
-//     custom_int1: "1", // 1 credit for single class
+//     custom_int1: "1",
 //     email_address: user.email,
 //     name_first: user.name.split(" ")[0] || user.name,
 //     name_last: user.name.split(" ").slice(1).join(" ") || "-",
@@ -729,7 +713,7 @@ export async function getRemainingMonthlyBookings(
 // }
 
 // // ─────────────────────────────────────────────────────────────────────────────
-// // C. INITIATE PAYFAST  (credit pack purchase from Packages page)
+// // C. INITIATE PAYFAST (credit pack purchase)
 // // ─────────────────────────────────────────────────────────────────────────────
 // export async function initiatePayFastForPack(
 //   packId: string,
@@ -738,17 +722,16 @@ export async function getRemainingMonthlyBookings(
 //   packCredits: number,
 //   user: UserProfile,
 // ): Promise<void> {
-//   // Create a purchase record
 //   const purchaseRef = push(ref(db, "pending_bookings"));
 //   const purchaseId = purchaseRef.key!;
-//   // REPLACE the entire set() call with this
+
 //   await set(purchaseRef, {
 //     userId: user.uid,
 //     userEmail: user.email,
 //     userName: user.name,
-//     classId: packId, // reuse classId field for packId
-//     className: packName, // reuse className field for packName
-//     dateKey: "", // not applicable for pack purchase
+//     classId: packId,
+//     className: packName,
+//     dateKey: "",
 //     dateDisplay: "",
 //     time: "",
 //     price: packPrice,
@@ -768,7 +751,7 @@ export async function getRemainingMonthlyBookings(
 //     custom_str1: purchaseId,
 //     custom_str2: "credit_pack",
 //     custom_str3: user.uid,
-//     custom_str4: "class_booking",
+//     custom_str4: "credits", // ← fixed: was "class_booking"
 //     custom_int1: String(packCredits),
 //     email_address: user.email,
 //     name_first: user.name.split(" ")[0] || user.name,
@@ -779,7 +762,7 @@ export async function getRemainingMonthlyBookings(
 // }
 
 // // ─────────────────────────────────────────────────────────────────────────────
-// // D. CANCEL BOOKING  (user-initiated)
+// // D. CANCEL BOOKING (user-initiated)
 // // ─────────────────────────────────────────────────────────────────────────────
 // export async function cancelBooking(
 //   cls: GymClass,
@@ -791,7 +774,6 @@ export async function getRemainingMonthlyBookings(
 
 //   await set(ref(db, `class_bookings/${bKey}/${user.uid}`), null);
 
-//   // Remove from user booking list
 //   const userBookingsRef = ref(db, `mk2_users/${user.uid}/bookings`);
 //   const userBookingsSnap = await get(userBookingsRef);
 //   const existing: unknown[] = userBookingsSnap.val() ?? [];
@@ -802,7 +784,6 @@ export async function getRemainingMonthlyBookings(
 //     ),
 //   );
 
-//   // Refund credit if they paid per-class
 //   if (refundCredit) {
 //     const credRef = ref(db, `mk2_users/${user.uid}/classCredits`);
 //     const credSnap = await get(credRef);
@@ -821,13 +802,12 @@ export async function getRemainingMonthlyBookings(
 // // E. LIMIT CHECKERS
 // // ─────────────────────────────────────────────────────────────────────────────
 
-// /** Count how many classes this user has booked in the last 30 days */
 // async function assertMonthlyLimit(
 //   uid: string,
 //   maxPerMonth: number,
 //   newDateKey: string,
 // ): Promise<void> {
-//   if (maxPerMonth === 0 || maxPerMonth >= 999) return; // unlimited or not applicable
+//   if (maxPerMonth === 0 || maxPerMonth >= 999) return;
 
 //   const snap = await get(ref(db, `mk2_users/${uid}/bookings`));
 //   const bookings: any[] = snap.val() ?? [];
@@ -845,13 +825,12 @@ export async function getRemainingMonthlyBookings(
 //   }
 // }
 
-// /** Count how many classes this user has booked on this specific date */
 // async function assertDailyLimit(
 //   uid: string,
 //   maxPerDay: number,
 //   dateKey: string,
 // ): Promise<void> {
-//   if (maxPerDay <= 1) return; // 0 or 1 is handled by the transaction (can't double-book same class)
+//   if (maxPerDay <= 1) return;
 
 //   const snap = await get(ref(db, `mk2_users/${uid}/bookings`));
 //   const bookings: any[] = snap.val() ?? [];
@@ -897,7 +876,7 @@ export async function getRemainingMonthlyBookings(
 // }
 
 // // ─────────────────────────────────────────────────────────────────────────────
-// // G. REMAINING BOOKINGS HELPER  (for UI display)
+// // G. REMAINING BOOKINGS HELPER (for UI display)
 // // ─────────────────────────────────────────────────────────────────────────────
 // export async function getRemainingMonthlyBookings(
 //   uid: string,
