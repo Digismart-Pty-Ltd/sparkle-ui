@@ -8,3 +8,21 @@ typings/
 # Node.js dependency directory
 node_modules/
 *.local
+
+# Secrets — never commit these
+functions/.env.gym-pro-20ee6
+.env
+.env.*
+migration/serviceAccount.json
+serviceAccount.json
+**/serviceAccount.json
+
+# Firebase build cache/artifacts
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Editor/OS junk (optional but common)
+.DS_Store
+Thumbs.db

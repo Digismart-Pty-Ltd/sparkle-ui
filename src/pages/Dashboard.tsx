@@ -917,7 +917,8 @@ export function Dashboard({ setPage }: { setPage: (p: string) => void }) {
   const firstName = user.name.split(" ")[0];
   const isBasicTier = membership === "basic";
 
-  const rawNews = liveNews.length > 0 ? liveNews : NEWS_PREVIEW;
+  // const rawNews = liveNews.length > 0 ? liveNews : NEWS_PREVIEW;
+  const rawNews = liveNews;
   const newsToShow = rawNews.map((n: any, i: number) => ({
     ...n,
     accent: n.accent ?? (i % 2 === 0 ? "orange" : "teal"),

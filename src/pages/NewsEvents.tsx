@@ -334,7 +334,8 @@ export function NewsEvents() {
     return () => unsub();
   }, []);
 
-  const NEWS = adminNews.length > 0 ? adminNews : FALLBACK_NEWS;
+  // const NEWS = adminNews.length > 0 ? adminNews : FALLBACK_NEWS;
+  const NEWS = adminNews;
   const filters = ["All", ...Array.from(new Set(NEWS.map((n) => n.type)))];
   const filtered =
     filter === "All" ? NEWS : NEWS.filter((n) => n.type === filter);
