@@ -6306,7 +6306,14 @@ function MembersManager({ toast }: any) {
     gold: { color: "hsl(38 92% 50%)", label: "Gold (legacy)", group: "legacy" },
   };
 
-  const getTierCfg = (tier: string) => TIER_CONFIG[tier] ?? TIER_CONFIG.basic;
+  const getTierCfg = (tier: string | null) =>
+    tier
+      ? (TIER_CONFIG[tier] ?? TIER_CONFIG.basic)
+      : {
+          color: "hsl(var(--muted-foreground))",
+          label: "Not yet assigned",
+          group: "unassigned",
+        };
 
   const loadMembers = async () => {
     setLoading(true);
@@ -6317,7 +6324,11 @@ function MembersManager({ toast }: any) {
           ([uid, val]: [string, any]) => ({
             uid,
             ...val,
-            membership: val.membership ?? "basic",
+            // No fallback to "basic" — that's an app subscription tier, not
+            // a gym contract. An unset membership genuinely means "no
+            // contract on file yet," and should stay unset until an admin
+            // assigns one below.
+            membership: val.membership ?? null,
           }),
         );
         setMembers(
@@ -6362,8 +6373,9 @@ function MembersManager({ toast }: any) {
     unlimited: members.filter((m) =>
       (m.membership ?? "").startsWith("unlimited"),
     ).length,
+    unassigned: members.filter((m) => !m.membership).length,
     legacy: members.filter((m) =>
-      ["basic", "silver", "gold"].includes(m.membership ?? "basic"),
+      ["basic", "silver", "gold"].includes(m.membership ?? ""),
     ).length,
   };
 
@@ -6371,7 +6383,12 @@ function MembersManager({ toast }: any) {
     { key: "u18", label: "Under 18", color: "hsl(263 85% 58%)" },
     { key: "hybrid", label: "Hybrid", color: "hsl(217 91% 53%)" },
     { key: "unlimited", label: "Unlimited", color: "hsl(20 100% 50%)" },
-    { key: "legacy", label: "Legacy", color: "hsl(var(--muted-foreground))" },
+    {
+      key: "unassigned",
+      label: "Not Assigned",
+      color: "hsl(var(--muted-foreground))",
+    },
+    { key: "legacy", label: "Legacy", color: "hsl(38 92% 44%)" },
   ];
 
   return (
@@ -6508,7 +6525,7 @@ function MembersManager({ toast }: any) {
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <select
                     value={m.membership ?? "basic"}
-                    onChange={(e) => setTier(m.uid, e.target.value)}
+                    onChange={(e) => setTier(m.uid, e.target.value || null)}
                     disabled={saving === m.uid}
                     style={{
                       ...inp,
@@ -6519,6 +6536,7 @@ function MembersManager({ toast }: any) {
                       color: cfg.color,
                     }}
                   >
+                    <option value="">— Not assigned —</option>
                     {/* Active tiers */}
                     <optgroup label="Under 18">
                       <option value="u18">Under 18</option>

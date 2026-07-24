@@ -17,6 +17,26 @@ import {
   onValue,
 } from "@/lib/firebase";
 
+// ── Gym contract tier ─────────────────────────────────────────────────────────
+// This can ONLY be set by a gym admin, once a physical/signed contract exists.
+// It is NEVER defaulted or auto-assigned by the app — that's the whole point:
+// the app has no way of knowing a contract was signed, only the gym does.
+// `undefined` means "no gym contract on file yet" — NOT "basic tier".
+export type GymMembershipTier =
+  | "u18"
+  | "hybrid_12m"
+  | "hybrid_6m"
+  | "hybrid_m2m"
+  | "unlimited_12m"
+  | "unlimited_6m"
+  | "unlimited_m2m";
+
+// ── App subscription tier ─────────────────────────────────────────────────────
+// This is self-service, set automatically on signup, and controls app-only
+// features (push notifications, community chat, AI credits, PayFast billing
+// for app extras). Nothing to do with the gym contract above.
+export type AppMembershipTier = "basic" | "silver" | "gold";
+
 export interface MK2User {
   uid: string;
   email: string;
@@ -30,7 +50,10 @@ export interface MK2User {
   checkIns: any[];
   points: number;
   createdAt: number;
-  membership: "basic" | "silver" | "gold";
+  /** Gym contract tier. Unset until a gym admin assigns it — see GymMembershipTier. */
+  membership?: GymMembershipTier;
+  /** App subscription tier. Defaults to "basic" on signup — see AppMembershipTier. */
+  appMembership: AppMembershipTier;
   gender?: "male" | "female";
   termsAcceptedAt?: number;
   termsVersion?: string;
@@ -47,11 +70,27 @@ const normalizeUser = (data: any): MK2User => ({
   checkIns: Array.isArray(data.checkIns) ? data.checkIns : [],
   points: data.points ?? 0,
   createdAt: data.createdAt ?? Date.now(),
-  membership: data.membership ?? "basic",
+  // Gym contract: leave untouched. Do NOT default this to "basic" or any
+  // other value — an unset membership correctly means "no contract yet",
+  // and only a gym admin (via the admin panel) should ever set it.
+  membership: data.membership ?? undefined,
+  // App subscription: this is the one that's safe to default, since it's
+  // just the free tier of the app itself, not a gym commitment.
+  appMembership: data.appMembership ?? "basic",
   classCredits: data.classCredits ?? 0,
   lastGoldTopUp: data.lastGoldTopUp ?? undefined,
   gender: data.gender ?? undefined,
 });
+
+/**
+ * True only once a gym admin has assigned a contract tier.
+ * Use this — not `!!user.membership` inline — anywhere "is this person
+ * a paying gym member" needs to be checked, so the meaning stays obvious
+ * at call sites.
+ */
+export function hasGymContract(user: MK2User | null): boolean {
+  return Boolean(user?.membership);
+}
 
 interface ToastData {
   msg: string;
@@ -86,8 +125,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const data = await fetchUser(fbUser.uid);
-        if (data) setUser(normalizeUser(data));
-        else setUser(null);
+        if (data) {
+          const normalized = normalizeUser(data);
+          setUser(normalized);
+          // Backfill: if this record predates appMembership (or is a brand
+          // new signup doc that never went through normalizeUser before),
+          // persist the normalized shape once so the admin panel and any
+          // direct DB reads see appMembership immediately, not just this
+          // in-memory session. This never touches `membership` — only
+          // fields that are safe to auto-fill.
+          if (data.appMembership === undefined) {
+            saveUser(fbUser.uid, normalized).catch(() => {});
+          }
+        } else {
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
