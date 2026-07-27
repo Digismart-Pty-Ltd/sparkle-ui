@@ -310,8 +310,9 @@ function AdminCalendar({
         background: "hsl(var(--secondary))",
         border: "1px solid hsl(var(--border))",
         borderRadius: 12,
-        padding: 16,
-        marginBottom: 20,
+        padding: 10,
+        maxWidth: 240,
+        margin: "0 auto 20px",
       }}
     >
       <div
@@ -319,7 +320,7 @@ function AdminCalendar({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 12,
+          marginBottom: 8,
         }}
       >
         <button
@@ -329,13 +330,13 @@ function AdminCalendar({
             border: "none",
             cursor: "pointer",
             color: "hsl(var(--muted-foreground))",
-            fontSize: 16,
-            padding: "2px 8px",
+            fontSize: 14,
+            padding: "2px 6px",
           }}
         >
           ←
         </button>
-        <div style={{ fontWeight: 700, fontSize: 13 }}>
+        <div style={{ fontWeight: 700, fontSize: 11 }}>
           {MONTH_NAMES[viewMonth]} {viewYear}
         </div>
         <button
@@ -345,8 +346,8 @@ function AdminCalendar({
             border: "none",
             cursor: "pointer",
             color: "hsl(var(--muted-foreground))",
-            fontSize: 16,
-            padding: "2px 8px",
+            fontSize: 14,
+            padding: "2px 6px",
           }}
         >
           →
@@ -364,10 +365,10 @@ function AdminCalendar({
             key={d}
             style={{
               textAlign: "center",
-              fontSize: 10,
+              fontSize: 8,
               fontWeight: 700,
               color: "hsl(var(--muted-foreground))",
-              padding: "2px 0",
+              padding: "1px 0",
             }}
           >
             {d}
@@ -396,7 +397,7 @@ function AdminCalendar({
               style={{
                 aspectRatio: "1",
                 borderRadius: 6,
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: 600,
                 cursor: "pointer",
                 border: "none",
@@ -424,8 +425,8 @@ function AdminCalendar({
               {count > 0 && (
                 <span
                   style={{
-                    width: 4,
-                    height: 4,
+                    width: 3,
+                    height: 3,
                     borderRadius: "50%",
                     background: isSel ? "#000" : "hsl(20 100% 50%)",
                     display: "block",
@@ -2839,10 +2840,12 @@ function ManualCashBooking({ toast }: any) {
               background: "hsl(var(--secondary))",
               border: "1px solid hsl(var(--border))",
               borderRadius: 12,
-              padding: "14px 16px",
+              padding: "10px 12px",
+              maxWidth: 240,
+              margin: "0 auto",
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8 }}>
               2. Pick a date
             </div>
             <div
@@ -4476,7 +4479,14 @@ function BookingExports({ toast }: any) {
       {subTab === "roster" && (
         <div>
           {/* Mini calendar */}
-          <div style={{ ...S.card, maxWidth: 340 }}>
+          <div
+            style={{
+              ...S.card,
+              maxWidth: 240,
+              margin: "0 auto 16px",
+              padding: "10px 12px",
+            }}
+          >
             <div
               style={{
                 display: "flex",
