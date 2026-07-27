@@ -79,13 +79,13 @@ export const TOOL_PAGES = [
 // excluded from the More drawer to avoid redundancy.
 
 const MORE_GYM = [
-  { id: "Checkin", label: "✅ Gym Check-In" },
-  { id: "Leaderboard", label: "🏅 Leaderboard" },
-  { id: "PRLogbook", label: "🏆 PR Logbook" },
-  { id: "Community", label: "💬 Community" },
-  { id: "News", label: "📢 News & Events" },
-  { id: "Membership", label: "💳 Membership" },
-  { id: "Account", label: "👤 My Account" },
+  { id: "Checkin", label: "Gym Check-In" },
+  { id: "Leaderboard", label: " Leaderboard" },
+  { id: "PRLogbook", label: " PR Logbook" },
+  { id: "Community", label: " Community" },
+  { id: "News", label: " News & Events" },
+  { id: "Membership", label: " Membership" },
+  { id: "Account", label: " My Account" },
 ];
 
 const MORE_SETTINGS = [

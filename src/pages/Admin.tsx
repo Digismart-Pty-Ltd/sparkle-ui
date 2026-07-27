@@ -753,7 +753,8 @@ function WodViewer({ cls }: { cls: any }) {
         </div>
       )}
 
-      {/* Exercises */}
+      {/* Workout — free-format blocks (falls back to a readable line for
+          any older classes that still have the old structured format) */}
       {hasExercises && (
         <div style={{ marginBottom: 10 }}>
           <div
@@ -766,57 +767,34 @@ function WodViewer({ cls }: { cls: any }) {
           >
             ⚡ WORKOUT
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {cls.exercises.map((ex: any, i: number) => (
-              <div
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {cls.exercises.map((block: any, i: number) => (
+              <pre
                 key={i}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "8px 12px",
+                  fontSize: 12,
+                  color: "hsl(var(--foreground))",
                   background: "hsl(var(--secondary))",
                   borderRadius: 8,
-                  fontSize: 13,
+                  padding: "10px 12px",
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  fontFamily: "monospace",
+                  lineHeight: 1.6,
                 }}
               >
-                <span
-                  style={{
-                    fontWeight: 700,
-                    color: "hsl(20 100% 50%)",
-                    minWidth: 24,
-                    fontSize: 11,
-                  }}
-                >
-                  {i + 1}.
-                </span>
-                <span style={{ fontWeight: 700, flex: 1 }}>{ex.name}</span>
-                {ex.sets && (
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "hsl(var(--muted-foreground))",
-                      background: "hsl(var(--background))",
-                      padding: "2px 8px",
-                      borderRadius: 6,
-                    }}
-                  >
-                    {ex.sets}
-                  </span>
-                )}
-                {ex.value && (
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "hsl(20 100% 50%)",
-                    }}
-                  >
-                    {ex.value} {ex.measure}
-                  </span>
-                )}
-              </div>
+                {typeof block === "string"
+                  ? block
+                  : [
+                      block?.name,
+                      block?.sets,
+                      block?.value
+                        ? `${block.value} ${block.measure ?? ""}`.trim()
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" — ")}
+              </pre>
             ))}
           </div>
         </div>
@@ -855,6 +833,23 @@ function WodViewer({ cls }: { cls: any }) {
     </div>
   );
 }
+
+// Converts legacy structured exercises ({name, sets, value, measure}) into
+// a single readable line, so switching to free-text workouts doesn't lose
+// data already saved on older classes. New workouts are plain strings and
+// pass through untouched.
+const normalizeWorkoutBlocks = (arr: any[]): string[] =>
+  (arr || []).map((item) =>
+    typeof item === "string"
+      ? item
+      : [
+          item?.name,
+          item?.sets,
+          item?.value ? `${item.value} ${item.measure ?? ""}`.trim() : "",
+        ]
+          .filter(Boolean)
+          .join(" — "),
+  );
 
 // ── Classes Manager ───────────────────────────────────────────────────────────
 function ClassesManager({ toast }: any) {
@@ -911,7 +906,7 @@ function ClassesManager({ toast }: any) {
     scheduleType: "day",
     wod: "",
     warmup: "",
-    exercises: [] as any[],
+    exercises: [] as string[],
     chargeNonMembers: true,
     price: "250",
   };
@@ -1006,7 +1001,7 @@ function ClassesManager({ toast }: any) {
       scheduleType: c.scheduleType || "day",
       wod: c.wod || "",
       warmup: c.warmup || "",
-      exercises: c.exercises || [],
+      exercises: normalizeWorkoutBlocks(c.exercises || []),
       chargeNonMembers: Boolean(c.chargeNonMembers),
       price: String(c.price ?? 0),
     });
@@ -1034,7 +1029,7 @@ function ClassesManager({ toast }: any) {
       scheduleType: c.scheduleType || "day",
       wod: c.wod || "",
       warmup: c.warmup || "",
-      exercises: c.exercises || [],
+      exercises: normalizeWorkoutBlocks(c.exercises || []),
       chargeNonMembers: Boolean(c.chargeNonMembers),
       price: String(c.price ?? 0),
     });
@@ -1239,11 +1234,11 @@ function ClassesManager({ toast }: any) {
           {expandedBookings === cls.id ? "▲" : "▼"}
         </button>
       )}
+      <Btn variant="subtle" size="sm" onClick={() => startEdit(cls)}>
+        ✏️ Edit
+      </Btn>
       <Btn variant="blue" size="sm" onClick={() => duplicateClass(cls)}>
         ⧉ Duplicate
-      </Btn>
-      <Btn variant="subtle" size="sm" onClick={() => startEdit(cls)}>
-        Edit
       </Btn>
       <Btn variant="danger" size="sm" onClick={() => cancelEntireClass(cls)}>
         🚫 Cancel Class
@@ -1713,6 +1708,7 @@ function ClassesManager({ toast }: any) {
                 </div>
 
                 {/* Workout */}
+                {/* Workout — free-format text, one or more blocks */}
                 <div
                   style={{
                     marginBottom: 14,
@@ -1728,90 +1724,63 @@ function ClassesManager({ toast }: any) {
                     ⚡ Workout
                   </div>
 
-                  {(form.exercises || []).map((ex: any, i: number) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        marginBottom: 8,
-                        alignItems: "flex-start",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <input
-                        style={{ ...inp, flex: 2, minWidth: 140 }}
-                        placeholder="Exercise name"
-                        value={ex.name}
-                        onChange={(e) => {
-                          const updated = [...(form.exercises || [])];
-                          updated[i] = { ...updated[i], name: e.target.value };
-                          setForm((p) => ({ ...p, exercises: updated }));
-                        }}
-                      />
-                      <input
-                        style={{ ...inp, flex: 1, minWidth: 80 }}
-                        placeholder="e.g. 3x10"
-                        value={ex.sets}
-                        onChange={(e) => {
-                          const updated = [...(form.exercises || [])];
-                          updated[i] = { ...updated[i], sets: e.target.value };
-                          setForm((p) => ({ ...p, exercises: updated }));
-                        }}
-                      />
-                      <input
-                        style={{ ...inp, flex: 1, minWidth: 70 }}
-                        placeholder="Value"
-                        value={ex.value ?? ""}
-                        onChange={(e) => {
-                          const updated = [...(form.exercises || [])];
-                          updated[i] = { ...updated[i], value: e.target.value };
-                          setForm((p) => ({ ...p, exercises: updated }));
-                        }}
-                      />
-                      <select
-                        style={{ ...inp, flex: 1, minWidth: 90 }}
-                        value={ex.measure ?? "kg"}
-                        onChange={(e) => {
-                          const updated = [...(form.exercises || [])];
-                          updated[i] = {
-                            ...updated[i],
-                            measure: e.target.value,
-                          };
-                          setForm((p) => ({ ...p, exercises: updated }));
-                        }}
-                      >
-                        <option value="kg">kg</option>
-                        <option value="lbs">lbs</option>
-                        <option value="reps">reps</option>
-                        <option value="time">time</option>
-                        <option value="distance">distance</option>
-                        <option value="calories">calories</option>
-                        <option value="rounds">rounds</option>
-                        <option value="%">% of 1RM</option>
-                        <option value="bodyweight">bodyweight</option>
-                      </select>
-                      <button
-                        onClick={() => {
-                          const updated = (form.exercises || []).filter(
-                            (_: any, j: number) => j !== i,
-                          );
-                          setForm((p) => ({ ...p, exercises: updated }));
-                        }}
+                  {(form.exercises || []).map((block: string, i: number) => (
+                    <div key={i} style={{ marginBottom: 10 }}>
+                      <div
                         style={{
-                          background: "hsl(0 84% 51% / 0.1)",
-                          border: "1px solid hsl(0 84% 51% / 0.3)",
-                          color: "hsl(0 84% 51%)",
-                          borderRadius: 8,
-                          padding: "8px 12px",
-                          cursor: "pointer",
-                          fontSize: 13,
-                          fontFamily: "var(--font-body)",
-                          flexShrink: 0,
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: 4,
                         }}
                       >
-                        ✕
-                      </button>
+                        <label style={lbl}>
+                          {(form.exercises || []).length > 1
+                            ? `Workout ${i + 1}`
+                            : "Workout"}
+                        </label>
+                        {(form.exercises || []).length > 1 && (
+                          <button
+                            onClick={() => {
+                              const updated = (form.exercises || []).filter(
+                                (_: any, j: number) => j !== i,
+                              );
+                              setForm((p) => ({ ...p, exercises: updated }));
+                            }}
+                            style={{
+                              background: "hsl(0 84% 51% / 0.1)",
+                              border: "1px solid hsl(0 84% 51% / 0.3)",
+                              color: "hsl(0 84% 51%)",
+                              borderRadius: 6,
+                              padding: "2px 10px",
+                              cursor: "pointer",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              fontFamily: "var(--font-body)",
+                            }}
+                          >
+                            ✕ Remove
+                          </button>
+                        )}
+                      </div>
+                      <textarea
+                        style={{
+                          ...inp,
+                          minHeight: 80,
+                          resize: "vertical",
+                          fontFamily: "monospace",
+                          fontSize: 12,
+                        }}
+                        placeholder={
+                          "e.g. 5 ROUNDS FOR TIME\n10 Deadlifts @ 60kg\n15 Box Jumps\n20 Cal Row"
+                        }
+                        value={block}
+                        onChange={(e) => {
+                          const updated = [...(form.exercises || [])];
+                          updated[i] = e.target.value;
+                          setForm((p) => ({ ...p, exercises: updated }));
+                        }}
+                      />
                     </div>
                   ))}
 
@@ -1819,10 +1788,7 @@ function ClassesManager({ toast }: any) {
                     onClick={() =>
                       setForm((p) => ({
                         ...p,
-                        exercises: [
-                          ...(p.exercises || []),
-                          { name: "", sets: "", value: "", measure: "kg" },
-                        ],
+                        exercises: [...(p.exercises || []), ""],
                       }))
                     }
                     style={{
@@ -1838,7 +1804,7 @@ function ClassesManager({ toast }: any) {
                       fontFamily: "var(--font-body)",
                     }}
                   >
-                    + Add Exercise
+                    + Add Workout
                   </button>
 
                   <div style={{ marginTop: 14 }}>
