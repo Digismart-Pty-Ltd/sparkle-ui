@@ -1038,24 +1038,18 @@ export function Dashboard({ setPage }: { setPage: (p: string) => void }) {
             {getGreeting()}, {firstName} 👋
           </h1>
           <p className="mt-2 text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
-            {memberConfig ? (
-              <span
-                className="inline-flex items-center gap-1.5 font-medium"
-                style={{ color: "hsl(175 80% 44%)" }}
-              >
-                <MI icon="workspace_premium" size={14} />
-                {memberConfig.label} Member
-              </span>
-            ) : (
-              <span
-                className="inline-flex items-center gap-1.5 font-medium"
-                style={{ color: "hsl(var(--muted-foreground))" }}
-              >
-                <MI icon="hourglass_empty" size={14} />
-                No gym contract yet
-              </span>
+            {memberConfig && (
+              <>
+                <span
+                  className="inline-flex items-center gap-1.5 font-medium"
+                  style={{ color: "hsl(175 80% 44%)" }}
+                >
+                  <MI icon="workspace_premium" size={14} />
+                  {memberConfig.label} Member
+                </span>
+                <span className="text-muted-foreground">•</span>
+              </>
             )}
-            <span className="text-muted-foreground">•</span>
             <span>{user.goal}</span>
           </p>
         </motion.header>
@@ -1342,14 +1336,15 @@ export function Dashboard({ setPage }: { setPage: (p: string) => void }) {
 //   );
 // }
 
-// // ─── UPDATED: Include all membership tiers ──────────────────────────────
+// // ─── Gym contract tiers only ──────────────────────────────────────────────
+// // This config is keyed by the GYM CONTRACT tier (user.membership), which is
+// // only ever set by a gym admin once a signed contract exists. It is NOT the
+// // app subscription tier (user.appMembership, which is basic/silver/gold and
+// // is handled entirely separately — see AuthContext.tsx for the split).
 // const MEMBERSHIP_CONFIG: Record<
 //   string,
 //   { label: string; color: string; emoji: string }
 // > = {
-//   basic: { label: "Basic", color: "#9ca3af", emoji: "🔵" },
-//   silver: { label: "Silver", color: "#e2e8f0", emoji: "⚪" },
-//   gold: { label: "Gold", color: "hsl(38 92% 50%)", emoji: "🥇" },
 //   u18: { label: "Under 18", color: "hsl(263 85% 58%)", emoji: "🟣" },
 //   hybrid_12m: {
 //     label: "Hybrid 12-month",
@@ -2230,19 +2225,30 @@ export function Dashboard({ setPage }: { setPage: (p: string) => void }) {
 //     setResending(false);
 //   };
 
-//   const membership = (user as any).membership ?? "basic";
-//   // ─── FIX 2: Fallback to avoid crash ───────────────────────────────────────
-//   const memberConfig = MEMBERSHIP_CONFIG[membership] ?? {
-//     label: "Member",
-//     color: "hsl(20 100% 50%)",
-//     emoji: "🏋️",
-//   };
+//   // ── Gym contract vs app subscription ──────────────────────────────────────
+//   // `membership` = gym contract tier (u18 / hybrid_* / unlimited_*).
+//   //   Set ONLY by a gym admin once a signed contract exists. Undefined
+//   //   means "no contract on file yet" — that is the correct default state
+//   //   for a brand new signup, not an error.
+//   // `appMembership` = app subscription tier (basic/silver/gold), unrelated
+//   //   to the gym contract — self-service, defaults to "basic" on signup.
+//   // See AuthContext.tsx for the full explanation and hasGymContract().
+//   const gymMembership = (user as any).membership as string | undefined;
+//   const hasGymContract = Boolean(gymMembership);
+//   const memberConfig = hasGymContract
+//     ? (MEMBERSHIP_CONFIG[gymMembership as string] ?? {
+//         label: "Member",
+//         color: "hsl(20 100% 50%)",
+//         emoji: "🏋️",
+//       })
+//     : null;
 //   const rewards = (user as any).rewards ?? {};
 //   const rewardStatus = getRewardStatus(user.checkIns, rewards);
 //   const firstName = user.name.split(" ")[0];
-//   const isBasicTier = membership === "basic";
+//   // Show the "not a member yet" upsell whenever there's no gym contract on
+//   // file — this has nothing to do with the person's app subscription tier.
+//   const isBasicTier = !hasGymContract;
 
-//   // const rawNews = liveNews.length > 0 ? liveNews : NEWS_PREVIEW;
 //   const rawNews = liveNews;
 //   const newsToShow = rawNews.map((n: any, i: number) => ({
 //     ...n,
@@ -2334,7 +2340,7 @@ export function Dashboard({ setPage }: { setPage: (p: string) => void }) {
 //           )}
 //         </AnimatePresence>
 
-//         {/* ①  NOT A MEMBER YET (REDESIGNED) ───────────────────────────── */}
+//         {/* ①  NOT A MEMBER YET (no gym contract on file) ───────────────── */}
 //         {isBasicTier && <NonMemberBanner setPage={setPage} />}
 
 //         {/* ②  GREETING ──────────────────────────────────────────────────── */}
@@ -2351,13 +2357,23 @@ export function Dashboard({ setPage }: { setPage: (p: string) => void }) {
 //             {getGreeting()}, {firstName} 👋
 //           </h1>
 //           <p className="mt-2 text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
-//             <span
-//               className="inline-flex items-center gap-1.5 font-medium"
-//               style={{ color: "hsl(175 80% 44%)" }}
-//             >
-//               <MI icon="workspace_premium" size={14} />
-//               {memberConfig.label} Member
-//             </span>
+//             {memberConfig ? (
+//               <span
+//                 className="inline-flex items-center gap-1.5 font-medium"
+//                 style={{ color: "hsl(175 80% 44%)" }}
+//               >
+//                 <MI icon="workspace_premium" size={14} />
+//                 {memberConfig.label} Member
+//               </span>
+//             ) : (
+//               <span
+//                 className="inline-flex items-center gap-1.5 font-medium"
+//                 style={{ color: "hsl(var(--muted-foreground))" }}
+//               >
+//                 <MI icon="hourglass_empty" size={14} />
+//                 No gym contract yet
+//               </span>
+//             )}
 //             <span className="text-muted-foreground">•</span>
 //             <span>{user.goal}</span>
 //           </p>
